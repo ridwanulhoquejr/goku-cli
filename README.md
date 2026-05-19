@@ -1,20 +1,23 @@
-# goku-cli
+# Goku CLI
 
-A small command-line tool written in Go that converts configuration files between **JSON** and **YAML**.
+A command-line toolkit written in Go for working with configuration files and managing them as resources in a PostgreSQL database.
 
-Built with [Cobra](https://github.com/spf13/cobra) and [goccy/go-yaml](https://github.com/goccy/go-yaml).
+Built with [Cobra](https://github.com/spf13/cobra), [sqlx](https://github.com/jmoiron/sqlx), [golang-migrate](https://github.com/golang-migrate/migrate), and [goccy/go-yaml](https://github.com/goccy/go-yaml).
 
 ## Features
 
-- Convert `.json` → `.yaml`
-- Convert `.yaml` / `.yml` → `.json`
-- Auto-detects the input format from the file extension
-- Writes output to a directory you choose, or falls back to the system temp directory
-- Friendly errors for unsupported extensions, missing files, and same-format conversions
+- **Convert** between `JSON` and `YAML` (auto-detects input format from extension)
+- **Persist** JSON/YAML resources in PostgreSQL as `JSONB`
+- **CRUD** over stored resources: `save`, `list`, `get`, `update`, `delete`
+- **Migrations** via `goku migrate up` / `goku migrate down`
+- Configurable database connection through the `GOKU_DB_URL` environment variable
+
+## Requirements
+
+- Go **1.24** or newer
+- PostgreSQL (for any command that touches the database)
 
 ## Installation
-
-Clone the repository and build the binary:
 
 ```bash
 git clone https://github.com/ridwanulhoquejr/goku-cli.git
@@ -22,43 +25,120 @@ cd goku-cli
 go build -o goku ./cmd
 ```
 
-Or install directly with `go install`:
+Or install directly:
 
 ```bash
 go install github.com/ridwanulhoquejr/goku-cli/cmd@latest
 ```
 
-> Requires Go **1.24** or newer.
+## Configuration
 
-## Usage
+The database connection string is read from `GOKU_DB_URL`. If unset, it defaults to:
 
 ```
-goku -i <file_path> -o <json|yaml> [-d <output_dir>]
+postgres://postgres:postgres@localhost:5432/goku?sslmode=disable
 ```
 
-### Flags
-
-| Flag           | Short | Description                                            |
-| -------------- | ----- | ------------------------------------------------------ |
-| `--input`      | `-i`  | Path to the input file (`.json`, `.yaml`, or `.yml`)   |
-| `--output`     | `-o`  | Target format: `json` or `yaml`                        |
-| `--dir`        | `-d`  | Output directory (defaults to the system temp dir)     |
-
-### Examples
-
-Convert a JSON file to YAML and place the result in `./output`:
+Example `.env`:
 
 ```bash
-goku -i example.json -o yaml -d ./output
+GOKU_DB_URL=postgres://postgres:postgres@localhost:5432/goku?sslmode=disable
 ```
 
-Convert a YAML file to JSON using the default output location:
+## Database setup
+
+Apply the schema before using the resource commands:
 
 ```bash
-goku -i config.yaml -o json
+goku migrate up
 ```
 
-### Example
+Roll back the most recent migration:
+
+```bash
+goku migrate down
+```
+
+The migrations directory defaults to `file://migrations`. Override with `--path` if needed.
+
+## Commands
+
+### `convert` — JSON ⇄ YAML
+
+```bash
+goku convert -i <file> -o <json|yaml> [-d <output_dir>]
+```
+
+| Flag       | Short | Description                                          |
+| ---------- | ----- | ---------------------------------------------------- |
+| `--input`  | `-i`  | Path to input file (`.json`, `.yaml`, or `.yml`)     |
+| `--output` | `-o`  | Target format: `json` or `yaml`                      |
+| `--dir`    | `-d`  | Output directory (defaults to the system temp dir)   |
+
+Example:
+
+```bash
+goku convert -i example.json -o yaml -d ./output
+```
+
+### `save` — store a resource
+
+```bash
+goku save -i <resource.json|resource.yaml>
+```
+
+Reads the file and inserts it into `resource_table` as a JSONB document.
+
+### `list` — list all resources
+
+```bash
+goku list
+```
+
+Prints a table of `ID`, `NAME`, `TYPE`, and `CREATED AT`.
+
+### `get` — fetch a resource by ID
+
+```bash
+goku get --id <id>
+```
+
+### `update` — replace a resource by ID
+
+```bash
+goku update --id <id> -i <new_file.json|new_file.yaml>
+```
+
+### `delete` — remove a resource by ID
+
+```bash
+goku delete --id <id>
+```
+
+### `migrate` — schema management
+
+```bash
+goku migrate up
+goku migrate down
+goku migrate up --path file://migrations
+```
+
+## Schema
+
+`migrations/000001_create_resource_table.up.sql`:
+
+```sql
+CREATE TABLE IF NOT EXISTS resource_table (
+    id          SERIAL PRIMARY KEY,
+    name        TEXT NOT NULL,
+    type        TEXT NOT NULL,
+    data        JSONB NOT NULL,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+## Example
 
 Given `example.json`:
 
@@ -66,16 +146,21 @@ Given `example.json`:
 {
     "Name": "Goku CLI",
     "Version": "1.0.0",
+    "Phase": "02",
     "Description": "A command-line interface for Goku, the powerful AI assistant."
 }
 ```
 
-Running `goku -i example.json -o yaml -d ./output` produces `output/example.yaml`:
+Convert to YAML:
 
-```yaml
-Description: A command-line interface for Goku, the powerful AI assistant.
-Name: Goku CLI
-Version: 1.0.0
+```bash
+goku convert -i example.json -o yaml -d ./output
+```
+
+Save into the database:
+
+```bash
+goku save -i example.json
 ```
 
 ## Project Structure
@@ -83,13 +168,31 @@ Version: 1.0.0
 ```
 .
 ├── cmd/
-│   └── main.go              # Entry point
+│   └── main.go                       # Entry point
 ├── internal/
-│   └── command/
-│       ├── command.go       # Cobra root command & flags
-│       └── convert.go       # Read, convert, and write logic
-├── example.json             # Sample input
-├── output/                  # Sample output
+│   ├── command/                      # Cobra commands
+│   │   ├── root.go
+│   │   ├── convert.go
+│   │   ├── save.go
+│   │   ├── list.go
+│   │   ├── get.go
+│   │   ├── update.go
+│   │   ├── delete.go
+│   │   └── migrate.go
+│   ├── handlers/                     # Business logic
+│   │   ├── convert.go
+│   │   ├── save.go
+│   │   ├── list.go
+│   │   ├── get.go
+│   │   ├── update.go
+│   │   ├── delete.go
+│   │   └── helpers.go
+│   └── db/                           # Database access & migrations
+│       ├── db.go
+│       └── resource.go
+├── migrations/                       # SQL migration files
+├── example.json
+├── output/
 ├── go.mod
 └── go.sum
 ```

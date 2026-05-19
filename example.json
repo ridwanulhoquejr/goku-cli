@@ -1,5 +1,6 @@
 {
-    "Name": "Goku CLI",
-    "Version": "1.0.0",
+    "Name": "Tekton CLI",
+    "Version": "1.0.1",
+    "Phase": "02",
     "Description": "A command-line interface for Goku, the powerful AI assistant."
 }
