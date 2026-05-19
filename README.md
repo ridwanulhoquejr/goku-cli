@@ -1,4 +1,4 @@
-# goko-cli
+# goku-cli
 
 A small command-line tool written in Go that converts configuration files between **JSON** and **YAML**.
 
@@ -17,15 +17,15 @@ Built with [Cobra](https://github.com/spf13/cobra) and [goccy/go-yaml](https://g
 Clone the repository and build the binary:
 
 ```bash
-git clone https://github.com/ridwanulhoquejr/goko-cli.git
-cd goko-cli
+git clone https://github.com/ridwanulhoquejr/goku-cli.git
+cd goku-cli
 go build -o goku ./cmd
 ```
 
 Or install directly with `go install`:
 
 ```bash
-go install github.com/ridwanulhoquejr/goko-cli/cmd@latest
+go install github.com/ridwanulhoquejr/goku-cli/cmd@latest
 ```
 
 > Requires Go **1.24** or newer.
