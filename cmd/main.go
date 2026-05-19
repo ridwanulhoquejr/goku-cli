@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ridwanulhoquejr/goko-cli/internal/command"
+	"github.com/ridwanulhoquejr/goku-cli/internal/command"
 )
 
 func main() {
