@@ -1,3 +1,4 @@
-Description: A command-line interface for Goku, the powerful AI assistant.
 Name: Goku CLI
+Description: A command-line interface for Goku, a tool for converting and managing data.
+Phase: 02
 Version: 1.0.0

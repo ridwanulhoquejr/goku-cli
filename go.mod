@@ -4,6 +4,9 @@ go 1.24.1
 
 require (
 	github.com/goccy/go-yaml v1.19.2
+	github.com/golang-migrate/migrate/v4 v4.19.1
+	github.com/jmoiron/sqlx v1.4.0
+	github.com/lib/pq v1.12.3
 	github.com/spf13/cobra v1.10.2
 )
 
